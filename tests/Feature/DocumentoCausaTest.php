@@ -106,3 +106,13 @@ test('un administrador puede eliminar un documento y queda auditado', function (
     Storage::disk('local')->assertMissing($documento->ruta);
     expect(Auditoria::query()->where('accion', AccionAuditoria::DocumentoEliminado)->count())->toBe(1);
 });
+
+test('el administrador puede visualizar documentos sin cargar la causa de forma diferida', function () {
+    $administrador = User::factory()->administrador()->create();
+    $causa = Causa::factory()->create();
+    DocumentoCausa::factory()->for($causa)->create(['nombre_original' => 'ANTECEDENTE VISIBLE.pdf']);
+
+    Livewire::actingAs($administrador)
+        ->test('causas.documentos', ['causa' => $causa])
+        ->assertSee('ANTECEDENTE VISIBLE.pdf');
+});

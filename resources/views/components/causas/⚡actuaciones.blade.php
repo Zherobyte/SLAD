@@ -159,6 +159,7 @@ new class extends Component {
         return Actuacion::query()
             ->select(['id', 'causa_id', 'fecha', 'estado_procesal_id', 'descripcion', 'created_by', 'created_at'])
             ->with([
+                'causa:id,responsable_id',
                 'estadoProcesal:id,nombre',
                 'creador:id,name',
             ])
@@ -188,6 +189,7 @@ new class extends Component {
     private function findActuacion(?int $actuacionId): Actuacion
     {
         return Actuacion::query()
+            ->with('causa:id,responsable_id')
             ->where('causa_id', $this->causaId)
             ->findOrFail($actuacionId);
     }

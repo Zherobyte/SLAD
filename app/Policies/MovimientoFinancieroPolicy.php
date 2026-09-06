@@ -15,7 +15,7 @@ class MovimientoFinancieroPolicy
 
     public function view(User $user, MovimientoFinanciero $movimientoFinanciero): bool
     {
-        return $user->can(Permiso::MovimientosVer->value) && $user->can('view', $movimientoFinanciero->causa);
+        return $user->can(Permiso::MovimientosVer->value) && $this->canAccessCausa($user, $movimientoFinanciero);
     }
 
     public function create(User $user): bool
@@ -25,21 +25,26 @@ class MovimientoFinancieroPolicy
 
     public function update(User $user, MovimientoFinanciero $movimientoFinanciero): bool
     {
-        return $user->can(Permiso::MovimientosEditar->value) && $user->can('view', $movimientoFinanciero->causa);
+        return $user->can(Permiso::MovimientosEditar->value) && $this->canAccessCausa($user, $movimientoFinanciero);
     }
 
     public function delete(User $user, MovimientoFinanciero $movimientoFinanciero): bool
     {
-        return $user->can(Permiso::MovimientosEliminar->value) && $user->can('view', $movimientoFinanciero->causa);
+        return $user->can(Permiso::MovimientosEliminar->value) && $this->canAccessCausa($user, $movimientoFinanciero);
     }
 
     public function restore(User $user, MovimientoFinanciero $movimientoFinanciero): bool
     {
-        return $user->can(Permiso::MovimientosEliminar->value) && $user->can('view', $movimientoFinanciero->causa);
+        return $user->can(Permiso::MovimientosEliminar->value) && $this->canAccessCausa($user, $movimientoFinanciero);
     }
 
     public function forceDelete(User $user, MovimientoFinanciero $movimientoFinanciero): bool
     {
-        return $user->can(Permiso::MovimientosEliminar->value) && $user->can('view', $movimientoFinanciero->causa);
+        return $user->can(Permiso::MovimientosEliminar->value) && $this->canAccessCausa($user, $movimientoFinanciero);
+    }
+
+    private function canAccessCausa(User $user, MovimientoFinanciero $movimientoFinanciero): bool
+    {
+        return $user->can('view', $movimientoFinanciero->loadMissing('causa')->causa);
     }
 }

@@ -142,7 +142,7 @@ new #[Title('Formulario de causa')] class extends Component {
             'accionId' => ['nullable', 'integer', $this->activeCatalogRule(Accion::class, $this->currentCausa()?->accion_id)],
             'estadoProcesalId' => ['nullable', 'integer', $this->activeCatalogRule(EstadoProcesal::class, $this->currentCausa()?->estado_procesal_id)],
             'estadoCausaId' => ['nullable', 'integer', $this->activeCatalogRule(EstadoCausa::class, $this->currentCausa()?->estado_causa_id)],
-            'montoDemandado' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
+            'montoDemandado' => ['nullable', 'integer', 'min:0', 'max:9999999999999'],
             'tieneCotizaciones' => ['required', 'boolean'],
             'observacionImportante' => ['nullable', 'string', 'max:10000'],
         ];
@@ -319,7 +319,9 @@ new #[Title('Formulario de causa')] class extends Component {
         $this->estadoProcesalId = $causa->estado_procesal_id === null ? '' : (string) $causa->estado_procesal_id;
         $this->estadoCausaId = $causa->estado_causa_id === null ? '' : (string) $causa->estado_causa_id;
         $this->responsableId = $causa->responsable_id === null ? '' : (string) $causa->responsable_id;
-        $this->montoDemandado = $causa->monto_demandado ?? '';
+        $this->montoDemandado = $causa->monto_demandado === null
+            ? ''
+            : number_format((float) $causa->monto_demandado, 0, '.', '');
         $this->tieneCotizaciones = $causa->tiene_cotizaciones ?? false;
         $this->observacionImportante = $causa->observacion_importante ?? '';
     }
@@ -462,8 +464,8 @@ new #[Title('Formulario de causa')] class extends Component {
         </flux:card>
 
         <flux:card class="grid gap-5">
-            <div><flux:heading size="lg">Información económica</flux:heading><flux:text>El monto se guarda como valor numérico sin formato.</flux:text></div>
-            <flux:input wire:model="montoDemandado" type="number" min="0" step="0.01" label="Monto demandado" prefix="$" />
+            <div><flux:heading size="lg">Información económica</flux:heading><flux:text>El monto se registra en pesos chilenos enteros, sin decimales.</flux:text></div>
+            <flux:input wire:model="montoDemandado" type="number" min="0" step="1" label="Monto demandado" prefix="$" />
             <flux:switch wire:model="tieneCotizaciones" label="Tiene cotizaciones" />
         </flux:card>
     </div>

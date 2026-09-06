@@ -163,12 +163,6 @@ new #[Title('Detalle de causa')] class extends Component
         <livewire:causas.actuaciones :causa="$this->causa" :key="'actuaciones-'.$causaId" />
     </flux:card>
 
-    @can('viewAny', \App\Models\Recordatorio::class)
-        <flux:card>
-            <livewire:causas.recordatorios :causa="$this->causa" :key="'recordatorios-'.$causaId" />
-        </flux:card>
-    @endcan
-
     <flux:card>
         <livewire:causas.movimientos-financieros :causa="$this->causa" :key="'movimientos-financieros-'.$causaId" />
     </flux:card>
@@ -178,6 +172,12 @@ new #[Title('Detalle de causa')] class extends Component
             <livewire:causas.documentos :causa="$this->causa" :key="'documentos-'.$causaId" />
         </flux:card>
     @endif
+
+    @can('viewAny', \App\Models\Recordatorio::class)
+        <flux:card>
+            <livewire:causas.recordatorios :causa="$this->causa" :key="'recordatorios-'.$causaId" />
+        </flux:card>
+    @endcan
     </div>
 
     <section class="print-only printable-cause" aria-label="Detalle imprimible de causa">
@@ -255,16 +255,16 @@ new #[Title('Detalle de causa')] class extends Component
             @endif
         </section>
     </section>
-</div>
 
-<style>
+    <style>
     .print-only { display: none; }
 
     @media print {
-        @page { size: A4; margin: 15mm; }
+        @page { size: 8.5in 13in; margin: 12mm; }
 
         [data-flux-sidebar], ui-sidebar, ui-sidebar-toggle, ui-header, nav, .screen-only { display: none !important; }
-        html, body { background: #fff !important; color: #111 !important; }
+        html, body, .slad-main { min-height: 0 !important; height: auto !important; background: #fff !important; color: #111 !important; }
+        .slad-main > [wire\:id] { flex: none !important; }
         .print-only { display: block !important; }
         .printable-cause { font-family: Arial, sans-serif; font-size: 10pt; line-height: 1.45; }
         .print-header { border-bottom: 2px solid #111; margin-bottom: 7mm; padding-bottom: 4mm; }
@@ -293,4 +293,5 @@ new #[Title('Detalle de causa')] class extends Component
         .print-totals dd { font-weight: 700; }
         .print-empty { color: #555; margin: 0; }
     }
-</style>
+    </style>
+</div>

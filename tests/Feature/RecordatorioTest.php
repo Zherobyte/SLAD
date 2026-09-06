@@ -71,6 +71,73 @@ test('un recordatorio puede abrirse para edición sin cargar su causa de forma d
         ->assertHasNoErrors();
 });
 
+test('los recordatorios pendientes incorporan control de vencimiento en el navegador', function () {
+    $abogado = User::factory()->abogado()->create();
+    $causa = Causa::factory()->create(['responsable_id' => $abogado->id]);
+    Recordatorio::factory()->create([
+        'causa_id' => $causa->id,
+        'user_id' => $abogado->id,
+        'created_by' => $abogado->id,
+        'estado' => EstadoRecordatorio::Pendiente,
+        'fecha_hora' => now()->addMinute(),
+    ]);
+
+    Livewire::actingAs($abogado)
+        ->test('causas.recordatorios', ['causa' => $causa])
+        ->assertSeeHtml('actualizarVencimiento')
+        ->assertSeeHtml('window.setInterval');
+});
+
+test('el panel de la causa muestra sólo los recordatorios pendientes', function () {
+    $abogado = User::factory()->abogado()->create();
+    $causa = Causa::factory()->create(['responsable_id' => $abogado->id]);
+    Recordatorio::factory()->create([
+        'causa_id' => $causa->id,
+        'user_id' => $abogado->id,
+        'created_by' => $abogado->id,
+        'titulo' => 'RECORDATORIO PENDIENTE',
+        'estado' => EstadoRecordatorio::Pendiente,
+    ]);
+    Recordatorio::factory()->create([
+        'causa_id' => $causa->id,
+        'user_id' => $abogado->id,
+        'created_by' => $abogado->id,
+        'titulo' => 'RECORDATORIO COMPLETADO',
+        'estado' => EstadoRecordatorio::Completado,
+    ]);
+
+    Livewire::actingAs($abogado)
+        ->test('causas.recordatorios', ['causa' => $causa])
+        ->assertSee('RECORDATORIO PENDIENTE')
+        ->assertDontSee('RECORDATORIO COMPLETADO');
+});
+
+test('el historial muestra los recordatorios completados y cancelados en un modal', function () {
+    $abogado = User::factory()->abogado()->create();
+    $causa = Causa::factory()->create(['responsable_id' => $abogado->id]);
+    Recordatorio::factory()->create([
+        'causa_id' => $causa->id,
+        'user_id' => $abogado->id,
+        'created_by' => $abogado->id,
+        'titulo' => 'TAREA COMPLETADA',
+        'estado' => EstadoRecordatorio::Completado,
+    ]);
+    Recordatorio::factory()->create([
+        'causa_id' => $causa->id,
+        'user_id' => $abogado->id,
+        'created_by' => $abogado->id,
+        'titulo' => 'TAREA CANCELADA',
+        'estado' => EstadoRecordatorio::Cancelado,
+    ]);
+
+    Livewire::actingAs($abogado)
+        ->test('causas.recordatorios', ['causa' => $causa])
+        ->call('openHistoryModal')
+        ->assertSet('showHistoryModal', true)
+        ->assertSee('TAREA COMPLETADA')
+        ->assertSee('TAREA CANCELADA');
+});
+
 test('se puede completar o cancelar un recordatorio pendiente según el permiso', function () {
     $administrador = User::factory()->administrador()->create();
     $causa = Causa::factory()->create();

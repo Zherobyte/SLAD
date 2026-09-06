@@ -79,7 +79,7 @@ test('el administrador crea una causa con todas sus relaciones y monto numérico
         ->set('estadoProcesalId', (string) $catalogos['estadoProcesal']->id)
         ->set('estadoCausaId', (string) $catalogos['estadoCausa']->id)
         ->set('responsableId', (string) $catalogos['responsable']->id)
-        ->set('montoDemandado', '1250000.50')
+        ->set('montoDemandado', '1250000')
         ->set('tieneCotizaciones', true)
         ->set('observacionImportante', 'Revisar plazo de contestación.')
         ->call('save')
@@ -94,8 +94,28 @@ test('el administrador crea una causa con todas sus relaciones y monto numérico
         ->and($causa->estadoProcesal->is($catalogos['estadoProcesal']))->toBeTrue()
         ->and($causa->estadoCausa->is($catalogos['estadoCausa']))->toBeTrue()
         ->and($causa->accion->is($catalogos['accion']))->toBeTrue()
-        ->and($causa->monto_demandado)->toBe('1250000.50')
+        ->and($causa->monto_demandado)->toBe('1250000.00')
         ->and($causa->tiene_cotizaciones)->toBeTrue();
+});
+
+test('al editar una causa el monto demandado se carga como peso entero', function () {
+    $administrador = User::factory()->administrador()->create();
+    $causa = Causa::factory()->create(['monto_demandado' => 39999999]);
+
+    Livewire::actingAs($administrador)
+        ->test('pages::causas.form', ['causa' => $causa])
+        ->assertSet('montoDemandado', '39999999');
+});
+
+test('el monto demandado no acepta decimales', function () {
+    $administrador = User::factory()->administrador()->create();
+    $causa = Causa::factory()->create();
+
+    Livewire::actingAs($administrador)
+        ->test('pages::causas.form', ['causa' => $causa])
+        ->set('montoDemandado', '39999999.50')
+        ->call('save')
+        ->assertHasErrors(['montoDemandado' => 'integer']);
 });
 
 test('las causas no almacenan funcionario o usuario', function () {

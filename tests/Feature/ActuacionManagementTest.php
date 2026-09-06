@@ -129,6 +129,16 @@ test('el historial se ordena por fecha e id de forma descendente', function () {
         ]);
 });
 
+test('el administrador puede visualizar actuaciones sin cargar la causa de forma diferida', function () {
+    $administrador = User::factory()->administrador()->create();
+    $causa = Causa::factory()->create();
+    Actuacion::factory()->for($causa)->create(['descripcion' => 'ACTUACIÓN VISIBLE']);
+
+    Livewire::actingAs($administrador)
+        ->test('causas.actuaciones', ['causa' => $causa])
+        ->assertSee('ACTUACIÓN VISIBLE');
+});
+
 test('el administrador puede editar una actuación sin cambiar su creador', function () {
     $administrador = User::factory()->administrador()->create([]);
     $creadorOriginal = User::factory()->create();

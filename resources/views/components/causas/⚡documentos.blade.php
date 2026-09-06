@@ -40,7 +40,7 @@ new class extends Component
     {
         return DocumentoCausa::query()
             ->where('causa_id', $this->causaId)
-            ->with('usuario:id,name')
+            ->with(['causa:id,responsable_id', 'usuario:id,name'])
             ->latest()
             ->get();
     }
@@ -106,7 +106,10 @@ new class extends Component
 
     private function documentoDeLaCausa(int $documentoId): DocumentoCausa
     {
-        return DocumentoCausa::query()->where('causa_id', $this->causaId)->findOrFail($documentoId);
+        return DocumentoCausa::query()
+            ->with('causa:id,responsable_id')
+            ->where('causa_id', $this->causaId)
+            ->findOrFail($documentoId);
     }
 };
 ?>

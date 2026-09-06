@@ -69,7 +69,9 @@ test('un usuario autorizado visualiza el detalle imprimible completo de una caus
         ->assertSee('$250.000')
         ->assertSee('Total ingresos')
         ->assertSee('window.print()')
-        ->assertSee('printable-cause');
+        ->assertSee('printable-cause')
+        ->assertSee('size: 8.5in 13in')
+        ->assertSee('slad-main');
 });
 
 test('un usuario sin permiso para ver causas no accede al detalle imprimible', function () {
@@ -95,5 +97,7 @@ test('el listado imprime todas las causas que cumplen los filtros aplicados', fu
         ->assertSee('Causa incluida')
         ->assertDontSee('Causa excluida')
         ->assertSee('Total de causas: 1')
-        ->assertSee('window.setTimeout');
+        ->assertSee('window.setTimeout')
+        ->assertSee('size: 13in 8.5in')
+        ->assertSee('slad-main');
 });

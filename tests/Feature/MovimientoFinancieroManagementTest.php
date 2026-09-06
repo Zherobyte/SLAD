@@ -265,6 +265,16 @@ test('los movimientos se muestran en orden cronológico descendente', function (
         ->assertSeeInOrder(['Movimiento reciente', 'Movimiento intermedio', 'Movimiento antiguo']);
 });
 
+test('el administrador puede visualizar movimientos sin cargar la causa de forma diferida', function () {
+    $administrador = User::factory()->administrador()->create();
+    $causa = Causa::factory()->create();
+    MovimientoFinanciero::factory()->for($causa)->create(['observacion' => 'MOVIMIENTO VISIBLE']);
+
+    Livewire::actingAs($administrador)
+        ->test('causas.movimientos-financieros', ['causa' => $causa])
+        ->assertSee('MOVIMIENTO VISIBLE');
+});
+
 test('no es posible manipular un movimiento para asociarlo a otra causa', function () {
     $administrador = User::factory()->administrador()->create([]);
     $causa = Causa::factory()->create();

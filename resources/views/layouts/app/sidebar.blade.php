@@ -63,6 +63,9 @@
 
             <flux:text class="px-3 text-xs text-slate-400!">Sistema Logístico de Administración de Derecho</flux:text>
 
+            <div class="hidden px-3 pt-3 lg:block">
+                <livewire:sidebar.server-clock :key="'server-clock-desktop'" />
+            </div>
             <div class="hidden px-3 py-2 lg:block">
                 <livewire:notifications.bell :key="'notification-bell-desktop'" />
             </div>

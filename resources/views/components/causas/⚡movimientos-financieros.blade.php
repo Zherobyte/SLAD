@@ -149,7 +149,7 @@ new class extends Component {
     {
         return MovimientoFinanciero::query()
             ->select(['id', 'causa_id', 'tipo', 'monto', 'fecha', 'observacion', 'created_by', 'created_at'])
-            ->with('creador:id,name')
+            ->with(['causa:id,responsable_id', 'creador:id,name'])
             ->where('causa_id', $this->causaId)
             ->orderByDesc('fecha')
             ->orderByDesc('id')
@@ -184,6 +184,7 @@ new class extends Component {
     private function findMovimiento(?int $movimientoId): MovimientoFinanciero
     {
         return MovimientoFinanciero::query()
+            ->with('causa:id,responsable_id')
             ->where('causa_id', $this->causaId)
             ->findOrFail($movimientoId);
     }

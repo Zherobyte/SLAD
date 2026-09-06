@@ -479,16 +479,16 @@ new #[Title('Causas')] class extends Component
         <p class="causas-print-total">Total de causas: {{ $this->printRecords->count() }}</p>
     </section>
     @endif
-</div>
 
-<style>
+    <style>
     .causas-print-only { display: none; }
 
     @media print {
-        @page { size: A4 landscape; margin: 12mm; }
+        @page { size: 13in 8.5in; margin: 10mm; }
 
         [data-flux-sidebar], ui-sidebar, ui-sidebar-toggle, ui-header, nav, .causas-screen-only { display: none !important; }
-        html, body { background: #fff !important; color: #111 !important; }
+        html, body, .slad-main { min-height: 0 !important; height: auto !important; background: #fff !important; color: #111 !important; }
+        .slad-main > [wire\:id] { flex: none !important; }
         .causas-print-only { display: block !important; }
         .causas-print-list { font-family: Arial, sans-serif; font-size: 8pt; line-height: 1.35; }
         .causas-print-header { border-bottom: 2px solid #111; margin-bottom: 5mm; padding-bottom: 3mm; }
@@ -504,4 +504,5 @@ new #[Title('Causas')] class extends Component
         .causas-print-empty { padding: 8mm !important; text-align: center !important; }
         .causas-print-total { font-size: 9pt; font-weight: 700; margin-top: 4mm; text-align: right; }
     }
-</style>
+    </style>
+</div>

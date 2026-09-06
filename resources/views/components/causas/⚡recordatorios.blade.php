@@ -24,6 +24,8 @@ new class extends Component {
 
     public bool $showFormModal = false;
 
+    public bool $showHistoryModal = false;
+
     public string $titulo = '';
 
     public string $descripcion = '';
@@ -54,6 +56,14 @@ new class extends Component {
         $this->hora = now()->addHour()->format('H:i');
         $this->userId = (string) ($causa->responsable_id ?? auth()->id());
         $this->showFormModal = true;
+    }
+
+    public function openHistoryModal(): void
+    {
+        Gate::authorize('view', $this->causa());
+        Gate::authorize('viewAny', Recordatorio::class);
+
+        $this->showHistoryModal = true;
     }
 
     public function openEditModal(int $recordatorioId): void
@@ -156,8 +166,26 @@ new class extends Component {
             ->select(['id', 'causa_id', 'user_id', 'titulo', 'descripcion', 'fecha_hora', 'recordar_minutos_antes', 'estado', 'created_at'])
             ->with('usuario:id,name,codigo')
             ->where('causa_id', $this->causaId)
-            ->orderByRaw("CASE WHEN estado = 'PENDIENTE' THEN 0 ELSE 1 END")
+            ->where('estado', EstadoRecordatorio::Pendiente)
             ->orderBy('fecha_hora')
+            ->get();
+    }
+
+    /** @return Collection<int, Recordatorio> */
+    #[Computed]
+    public function recordatoriosHistoricos(): Collection
+    {
+        if (! $this->showHistoryModal) {
+            return new Collection;
+        }
+
+        return Recordatorio::query()
+            ->select(['id', 'causa_id', 'user_id', 'titulo', 'descripcion', 'fecha_hora', 'recordar_minutos_antes', 'estado'])
+            ->with('usuario:id,name,codigo')
+            ->where('causa_id', $this->causaId)
+            ->whereIn('estado', [EstadoRecordatorio::Completado, EstadoRecordatorio::Cancelado])
+            ->orderByDesc('fecha_hora')
+            ->limit(100)
             ->get();
     }
 
@@ -206,29 +234,48 @@ new class extends Component {
         <div class="grid gap-2">
             <div class="flex items-center gap-2">
                 <flux:heading id="recordatorios-heading" size="lg">Recordatorios</flux:heading>
-                <flux:badge color="amber" size="sm">{{ $this->recordatorios->where('estado', \App\Enums\EstadoRecordatorio::Pendiente)->count() }} pendientes</flux:badge>
+                <flux:badge color="amber" size="sm">{{ $this->recordatorios->count() }} pendientes</flux:badge>
             </div>
             <flux:text>Agenda interna de plazos y tareas asociadas a esta causa.</flux:text>
         </div>
 
-        @can('create', \App\Models\Recordatorio::class)
-            <flux:button variant="primary" icon="bell-alert" wire:click="openCreateModal">Nuevo recordatorio</flux:button>
-        @endcan
+        <div class="flex flex-wrap gap-2">
+            <flux:button variant="ghost" icon="clock" wire:click="openHistoryModal">Ver historial</flux:button>
+            @can('create', \App\Models\Recordatorio::class)
+                <flux:button variant="primary" icon="bell-alert" wire:click="openCreateModal">Nuevo recordatorio</flux:button>
+            @endcan
+        </div>
     </div>
 
     <div class="grid gap-3" wire:loading.class="opacity-60" wire:target="save,complete,cancel">
         @forelse ($this->recordatorios as $recordatorio)
-            <article wire:key="recordatorio-{{ $recordatorio->id }}" class="grid gap-3 rounded-sm border border-[#c5c6cd] bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:grid-cols-[1fr_auto] sm:items-start">
+            <article
+                wire:key="recordatorio-{{ $recordatorio->id }}"
+                x-data="{
+                    fechaHora: @js($recordatorio->fecha_hora->toIso8601String()),
+                    horaServidor: @js(now()->toIso8601String()),
+                    instanteCliente: Date.now(),
+                    vencido: @js($recordatorio->estaVencido()),
+                    temporizador: null,
+                    init() {
+                        this.actualizarVencimiento();
+                        this.temporizador = window.setInterval(() => this.actualizarVencimiento(), 1000);
+                    },
+                    destroy() {
+                        window.clearInterval(this.temporizador);
+                    },
+                    actualizarVencimiento() {
+                        const ahoraServidor = new Date(this.horaServidor).getTime() + (Date.now() - this.instanteCliente);
+                        this.vencido = new Date(this.fechaHora).getTime() <= ahoraServidor;
+                    },
+                }"
+                class="grid gap-3 rounded-sm border border-[#c5c6cd] bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:grid-cols-[1fr_auto] sm:items-start"
+            >
                 <div class="grid gap-2">
                     <div class="flex flex-wrap items-center gap-2">
                         <flux:heading size="sm">{{ $recordatorio->titulo }}</flux:heading>
-                        @if ($recordatorio->estado === \App\Enums\EstadoRecordatorio::Pendiente)
-                            <flux:badge :color="$recordatorio->estaVencido() ? 'red' : 'amber'" size="sm">{{ $recordatorio->estaVencido() ? 'VENCIDO' : 'PENDIENTE' }}</flux:badge>
-                        @elseif ($recordatorio->estado === \App\Enums\EstadoRecordatorio::Completado)
-                            <flux:badge color="green" size="sm">COMPLETADO</flux:badge>
-                        @else
-                            <flux:badge color="zinc" size="sm">CANCELADO</flux:badge>
-                        @endif
+                        <span x-show="! vencido"><flux:badge color="amber" size="sm">PENDIENTE</flux:badge></span>
+                        <span x-show="vencido"><flux:badge color="red" size="sm">VENCIDO</flux:badge></span>
                     </div>
                     @if (filled($recordatorio->descripcion))
                         <p class="whitespace-pre-wrap break-words text-sm text-zinc-700 dark:text-zinc-300">{{ $recordatorio->descripcion }}</p>
@@ -239,25 +286,63 @@ new class extends Component {
                         <span>Asignado a: {{ $recordatorio->usuario?->etiquetaResponsable() ?? 'Usuario no disponible' }}</span>
                     </div>
                 </div>
-                @if ($recordatorio->estado === \App\Enums\EstadoRecordatorio::Pendiente)
-                    <div class="flex flex-wrap gap-1 sm:justify-end">
-                        @can('update', $recordatorio)
-                            <flux:button size="sm" variant="ghost" icon="pencil-square" wire:click="openEditModal({{ $recordatorio->id }})">Editar</flux:button>
-                            <flux:button size="sm" variant="ghost" icon="check" wire:click="complete({{ $recordatorio->id }})">Completar</flux:button>
-                        @endcan
-                        @can('cancel', $recordatorio)
-                            <flux:button size="sm" variant="ghost" icon="x-mark" wire:click="cancel({{ $recordatorio->id }})">Cancelar</flux:button>
-                        @endcan
-                    </div>
-                @endif
+                <div class="flex flex-wrap gap-1 sm:justify-end">
+                    @can('update', $recordatorio)
+                        <flux:button size="sm" variant="ghost" icon="pencil-square" wire:click="openEditModal({{ $recordatorio->id }})">Editar</flux:button>
+                        <flux:button size="sm" variant="ghost" icon="check" wire:click="complete({{ $recordatorio->id }})">Completar</flux:button>
+                    @endcan
+                    @can('cancel', $recordatorio)
+                        <flux:button size="sm" variant="ghost" icon="x-mark" wire:click="cancel({{ $recordatorio->id }})">Cancelar</flux:button>
+                    @endcan
+                </div>
             </article>
         @empty
             <div class="rounded-sm border border-dashed border-[#c5c6cd] p-8 text-center dark:border-slate-700">
-                <flux:heading size="sm">Sin recordatorios registrados</flux:heading>
-                <flux:text class="mt-1">Crea uno para controlar un plazo o tarea de esta causa.</flux:text>
+                <flux:heading size="sm">Sin recordatorios pendientes</flux:heading>
+                <flux:text class="mt-1">Crea un recordatorio para controlar un plazo o tarea de esta causa.</flux:text>
             </div>
         @endforelse
     </div>
+
+    <flux:modal wire:model="showHistoryModal" class="md:min-w-2xl" scroll="body">
+        <div class="grid gap-5">
+            <div class="grid gap-1">
+                <flux:heading size="lg">Historial de recordatorios</flux:heading>
+                <flux:text>Recordatorios completados o cancelados de esta causa. Se muestran los últimos 100 registros.</flux:text>
+            </div>
+
+            <div class="grid gap-3">
+                @forelse ($this->recordatoriosHistoricos as $recordatorio)
+                    <article wire:key="recordatorio-historico-{{ $recordatorio->id }}" class="grid gap-2 rounded-sm border border-[#c5c6cd] p-4 dark:border-slate-700">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <flux:heading size="sm">{{ $recordatorio->titulo }}</flux:heading>
+                            @if ($recordatorio->estado === \App\Enums\EstadoRecordatorio::Completado)
+                                <flux:badge color="green" size="sm">COMPLETADO</flux:badge>
+                            @else
+                                <flux:badge color="zinc" size="sm">CANCELADO</flux:badge>
+                            @endif
+                        </div>
+                        @if (filled($recordatorio->descripcion))
+                            <p class="whitespace-pre-wrap break-words text-sm text-zinc-700 dark:text-zinc-300">{{ $recordatorio->descripcion }}</p>
+                        @endif
+                        <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+                            <span>{{ $recordatorio->fecha_hora->format('d-m-Y H:i') }}</span>
+                            <span>Asignado a: {{ $recordatorio->usuario?->etiquetaResponsable() ?? 'Usuario no disponible' }}</span>
+                        </div>
+                    </article>
+                @empty
+                    <div class="rounded-sm border border-dashed border-[#c5c6cd] p-8 text-center dark:border-slate-700">
+                        <flux:heading size="sm">Sin historial de recordatorios</flux:heading>
+                        <flux:text class="mt-1">Los recordatorios completados o cancelados aparecerán aquí.</flux:text>
+                    </div>
+                @endforelse
+            </div>
+
+            <div class="flex justify-end">
+                <flux:modal.close><flux:button variant="ghost" type="button">Cerrar</flux:button></flux:modal.close>
+            </div>
+        </div>
+    </flux:modal>
 
     <flux:modal wire:model="showFormModal" class="md:min-w-xl" scroll="body">
         <form wire:submit="save" class="grid gap-5">

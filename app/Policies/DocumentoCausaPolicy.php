@@ -21,7 +21,7 @@ class DocumentoCausaPolicy
      */
     public function view(User $user, DocumentoCausa $documentoCausa): bool
     {
-        return $user->can(Permiso::DocumentosVer->value) && $user->can('view', $documentoCausa->causa);
+        return $user->can(Permiso::DocumentosVer->value) && $this->canAccessCausa($user, $documentoCausa);
     }
 
     /**
@@ -45,7 +45,7 @@ class DocumentoCausaPolicy
      */
     public function delete(User $user, DocumentoCausa $documentoCausa): bool
     {
-        return $user->can(Permiso::DocumentosEliminar->value) && $user->can('view', $documentoCausa->causa);
+        return $user->can(Permiso::DocumentosEliminar->value) && $this->canAccessCausa($user, $documentoCausa);
     }
 
     /**
@@ -62,5 +62,10 @@ class DocumentoCausaPolicy
     public function forceDelete(User $user, DocumentoCausa $documentoCausa): bool
     {
         return false;
+    }
+
+    private function canAccessCausa(User $user, DocumentoCausa $documentoCausa): bool
+    {
+        return $user->can('view', $documentoCausa->loadMissing('causa')->causa);
     }
 }

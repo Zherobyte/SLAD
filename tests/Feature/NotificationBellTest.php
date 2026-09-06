@@ -19,3 +19,22 @@ test('la campana muestra y marca como leídas sólo las notificaciones del usuar
 
     expect($notification->refresh()->read_at)->not->toBeNull()->and($otroUsuario->unreadNotifications()->count())->toBe(1);
 });
+
+test('la campana incorpora avisos inmediatos para recordatorios pendientes', function () {
+    $usuario = User::factory()->abogado()->create();
+    $causa = Causa::factory()->create(['responsable_id' => $usuario->id]);
+    Recordatorio::factory()->create([
+        'causa_id' => $causa->id,
+        'user_id' => $usuario->id,
+        'created_by' => $usuario->id,
+        'titulo' => 'AVISO INMEDIATO',
+        'fecha_hora' => now()->addHour(),
+        'notificar_en' => now()->subMinute(),
+    ]);
+
+    Livewire::actingAs($usuario)
+        ->test('notifications.bell')
+        ->assertSee('AVISO INMEDIATO')
+        ->assertSeeHtml('actualizarAvisos')
+        ->assertSeeHtml('window.setInterval');
+});

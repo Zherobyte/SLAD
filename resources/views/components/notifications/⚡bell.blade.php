@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\EstadoRecordatorio;
+use App\Models\Recordatorio;
 use App\Notifications\RecordatorioPendienteNotification;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -28,6 +30,21 @@ new class extends Component {
             ->count();
     }
 
+    /** @return Collection<int, Recordatorio> */
+    #[Computed]
+    public function remindersAwaitingAlert(): Collection
+    {
+        return Recordatorio::query()
+            ->select(['id', 'causa_id', 'titulo', 'fecha_hora', 'notificar_en'])
+            ->with('causa:id,numero_causa,nombre')
+            ->where('user_id', auth()->id())
+            ->where('estado', EstadoRecordatorio::Pendiente)
+            ->whereNull('notificado_at')
+            ->orderBy('notificar_en')
+            ->limit(8)
+            ->get();
+    }
+
     public function markAsRead(string $notificationId): void
     {
         $notification = auth()->user()
@@ -54,12 +71,58 @@ new class extends Component {
     }
 }; ?>
 
-<div wire:poll.60s class="relative">
+@php
+    $notifications = $this->notifications;
+    $recordatoriosPendientes = $this->remindersAwaitingAlert
+        ->map(fn (Recordatorio $recordatorio): array => [
+            'id' => $recordatorio->id,
+            'titulo' => $recordatorio->titulo,
+            'causaNumero' => $recordatorio->causa->numero_causa ?? 'Causa',
+            'fechaHora' => $recordatorio->fecha_hora->toIso8601String(),
+            'notificarEn' => $recordatorio->notificar_en->toIso8601String(),
+            'url' => route('causas.show', $recordatorio->causa),
+        ])
+        ->values();
+    $recordatoriosNotificados = $notifications
+        ->map(fn ($notification) => $notification->data['recordatorio_id'] ?? null)
+        ->filter()
+        ->values();
+@endphp
+
+<div
+    wire:poll.30s
+    class="relative"
+    x-data="{
+        horaServidor: @js(now()->toIso8601String()),
+        instanteCliente: Date.now(),
+        notificacionesNoLeidas: @js($this->unreadCount),
+        recordatorios: @js($recordatoriosPendientes),
+        recordatoriosNotificados: @js($recordatoriosNotificados),
+        avisosInmediatos: [],
+        temporizador: null,
+        init() {
+            this.actualizarAvisos();
+            this.temporizador = window.setInterval(() => this.actualizarAvisos(), 1000);
+        },
+        destroy() {
+            window.clearInterval(this.temporizador);
+        },
+        actualizarAvisos() {
+            const ahoraServidor = new Date(this.horaServidor).getTime() + (Date.now() - this.instanteCliente);
+
+            this.avisosInmediatos = this.recordatorios.filter((recordatorio) => {
+                return new Date(recordatorio.notificarEn).getTime() <= ahoraServidor
+                    && ! this.recordatoriosNotificados.includes(recordatorio.id);
+            });
+        },
+        contador() {
+            return this.notificacionesNoLeidas + this.avisosInmediatos.length;
+        },
+    }"
+>
     <flux:dropdown position="bottom" align="end">
         <flux:button variant="ghost" icon="bell" square aria-label="Notificaciones">
-            @if ($this->unreadCount > 0)
-                <span class="absolute -right-1 -top-1 inline-flex min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold leading-4 text-white">{{ min($this->unreadCount, 99) }}</span>
-            @endif
+            <span x-cloak x-show="contador() > 0" x-text="Math.min(contador(), 99)" class="absolute -right-1 -top-1 inline-flex min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold leading-4 text-white"></span>
         </flux:button>
         <flux:menu class="w-80">
             <div class="flex items-center justify-between gap-3 px-2 py-2">
@@ -69,16 +132,29 @@ new class extends Component {
                 @endif
             </div>
             <flux:menu.separator />
-            @forelse ($this->notifications as $notification)
+            <div x-cloak x-show="avisosInmediatos.length > 0">
+                <div class="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">Por atender ahora</div>
+                <template x-for="recordatorio in avisosInmediatos" :key="`recordatorio-inmediato-${recordatorio.id}`">
+                    <a :href="recordatorio.url" class="block px-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                        <div class="grid gap-1 whitespace-normal font-semibold">
+                            <span x-text="recordatorio.titulo"></span>
+                            <span class="text-xs font-normal text-zinc-500" x-text="`${recordatorio.causaNumero} · Aviso programado`"></span>
+                        </div>
+                    </a>
+                </template>
+                <flux:menu.separator />
+            </div>
+            @foreach ($notifications as $notification)
                 <flux:menu.item wire:key="notification-{{ $notification->id }}" :href="$notification->data['url'] ?? route('dashboard')" wire:click="markAsRead('{{ $notification->id }}')" wire:navigate>
                     <div class="grid gap-1 whitespace-normal {{ $notification->read_at === null ? 'font-semibold' : '' }}">
                         <span>{{ $notification->data['mensaje'] ?? 'Recordatorio pendiente' }}</span>
                         <span class="text-xs font-normal text-zinc-500">{{ $notification->data['causa_numero'] ?? 'Causa' }} · {{ $notification->created_at->format('d-m H:i') }}</span>
                     </div>
                 </flux:menu.item>
-            @empty
-                <div class="px-3 py-6 text-center text-sm text-zinc-500">No tienes recordatorios notificados.</div>
-            @endforelse
+            @endforeach
+            @if ($notifications->isEmpty())
+                <div x-cloak x-show="avisosInmediatos.length === 0" class="px-3 py-6 text-center text-sm text-zinc-500">No tienes recordatorios notificados.</div>
+            @endif
         </flux:menu>
     </flux:dropdown>
 </div>
