@@ -1,0 +1,124 @@
+@import 'tailwindcss';
+@import '../../vendor/livewire/flux/dist/flux.css';
+
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../vendor/livewire/flux-pro/stubs/**/*.blade.php';
+@source '../../vendor/livewire/flux/stubs/**/*.blade.php';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-zinc-50: #fafafa;
+    --color-zinc-100: #f5f5f5;
+    --color-zinc-200: #e5e5e5;
+    --color-zinc-300: #d4d4d4;
+    --color-zinc-400: #a3a3a3;
+    --color-zinc-500: #737373;
+    --color-zinc-600: #525252;
+    --color-zinc-700: #404040;
+    --color-zinc-800: #262626;
+    --color-zinc-900: #171717;
+    --color-zinc-950: #0a0a0a;
+
+    --color-accent: #006a61;
+    --color-accent-content: #00574f;
+    --color-accent-foreground: var(--color-white);
+}
+
+@layer theme {
+    .dark {
+        --color-accent: #2dd4bf;
+        --color-accent-content: #5eead4;
+        --color-accent-foreground: #091426;
+    }
+}
+
+@layer base {
+
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentColor);
+    }
+}
+
+[data-flux-field]:not(ui-radio, ui-checkbox) {
+    @apply grid gap-2;
+}
+
+[data-flux-label] {
+    @apply  !mb-0 !leading-tight;
+}
+
+input:focus[data-flux-control],
+textarea:focus[data-flux-control],
+select:focus[data-flux-control] {
+    @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
+}
+
+@layer components {
+    [data-flux-card] {
+        border-radius: 0.25rem;
+        box-shadow: none;
+    }
+
+    [data-flux-button],
+    [data-flux-group-target],
+    [data-flux-modal] dialog,
+    [data-flux-modal-content] {
+        border-radius: 0.25rem;
+    }
+
+    [data-flux-main] {
+        background-color: #f8f9ff;
+    }
+
+    .dark [data-flux-main] {
+        background-color: #08111f;
+    }
+
+    .slad-sidebar [data-flux-sidebar-item] {
+        color: #cbd5e1;
+        border-radius: 0.25rem;
+    }
+
+    .slad-sidebar [data-flux-sidebar-item]:hover {
+        color: #ffffff;
+        background-color: rgb(255 255 255 / 0.08);
+    }
+
+    .slad-sidebar [data-flux-sidebar-item][data-active] {
+        color: #ffffff;
+        background-color: #006a61;
+    }
+
+    .slad-sidebar [data-flux-sidebar-profile] {
+        color: #e2e8f0;
+        border-radius: 0.25rem;
+    }
+
+    .slad-sidebar [data-flux-sidebar-profile]:hover {
+        background-color: rgb(255 255 255 / 0.08);
+    }
+
+    .slad-auth-surface [data-flux-control] {
+        border-radius: 0.25rem;
+    }
+
+    [data-flux-table] thead {
+        background-color: #f1f5f9;
+    }
+
+    .dark [data-flux-table] thead {
+        background-color: rgb(15 23 42 / 0.7);
+    }
+}
+
+/* \[:where(&)\]:size-4 {
+    @apply size-4;
+} */
