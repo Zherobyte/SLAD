@@ -1,4 +1,4 @@
-# SLAD — Sistema Logístico de Administración de Derecho
+# SLAD — Sistema Logístico de Administración de Causas Juridicas
 
 SLAD es una aplicación web para administrar causas jurídicas, sus antecedentes procesales, movimientos financieros, documentos, responsables, importaciones históricas y recordatorios. Está orientada al contexto chileno: valida RUT, utiliza la zona horaria `America/Santiago` y expresa los montos monetarios en pesos chilenos (CLP).
 
