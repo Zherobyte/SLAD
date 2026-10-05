@@ -91,11 +91,16 @@ class FortifyServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('login', function (Request $request) {
-            $rut = ChileanRut::normalize($request->string(Fortify::username())->toString())
-                ?? $request->string(Fortify::username())->toString();
+            $rut = ChileanRut::normalize($request->string('rut')->toString())
+                ?? $request->string('rut')->toString();
             $throttleKey = Str::transliterate(Str::upper($rut).'|'.$request->ip());
 
-            return Limit::perMinute(5)->by($throttleKey);
+            return [
+                // Límite 1: Máximo 5 intentos por RUT e IP por minuto
+                Limit::perMinute(5)->by($throttleKey),
+                // Límite 2: Máximo 15 intentos globales por IP por minuto (bloquea enumeración de RUTs)
+                Limit::perMinute(15)->by($request->ip()),
+            ];
         });
 
         RateLimiter::for('passkeys', function (Request $request) {
@@ -106,4 +111,3 @@ class FortifyServiceProvider extends ServiceProvider
             );
         });
     }
-}
