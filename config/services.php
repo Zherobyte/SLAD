@@ -35,6 +35,7 @@ return [
         ],
     ],
 
+<<<<<<< HEAD
     'google_calendar' => [
         'enabled' => env('GOOGLE_CALENDAR_ENABLED', false),
         'calendar_id' => env('GOOGLE_CALENDAR_ID'),
@@ -44,4 +45,11 @@ return [
         'event_duration_minutes' => (int) env('GOOGLE_CALENDAR_EVENT_DURATION_MINUTES', 30),
     ],
 
+=======
+	'google' => [
+            'client_id' => env('GOOGLE_CLIENT_ID'),
+            'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+            'redirect_uri' => env('GOOGLE_REDIRECT_URI'),
+    ]
+>>>>>>> b962ab1 (cambios de validacion de rut e ip)
 ];
