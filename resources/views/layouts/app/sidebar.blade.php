@@ -38,6 +38,9 @@
                             Bitácora de auditoría
                         </flux:sidebar.item>
                     @endcan
+                    @if (auth()->user()->hasRole(\App\Enums\RolUsuario::Administrador->value))
+                        <flux:sidebar.item icon="calendar-days" :href="route('admin.google-calendar.show')" :current="request()->routeIs('admin.google-calendar.*')">Google Calendar</flux:sidebar.item>
+                    @endif
                     @can(\App\Enums\Permiso::CausasVer->value)
                         <flux:sidebar.item icon="briefcase" :href="route('causas.index')" :current="request()->routeIs('causas.*')" wire:navigate>
                             Causas

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\EstadoRecordatorio;
+use App\Models\GoogleCalendarConnection;
 use App\Models\Recordatorio;
 use App\Models\User;
 use Illuminate\Http\Client\PendingRequest;
@@ -121,7 +122,7 @@ class GoogleCalendarService
             ->post('https://oauth2.googleapis.com/token', [
                 'client_id' => config('services.google_calendar.client_id'),
                 'client_secret' => config('services.google_calendar.client_secret'),
-                'refresh_token' => config('services.google_calendar.refresh_token'),
+                'refresh_token' => GoogleCalendarConnection::query()->value('refresh_token') ?? config('services.google_calendar.refresh_token'),
                 'grant_type' => 'refresh_token',
             ]);
 
@@ -137,19 +138,23 @@ class GoogleCalendarService
     private function isConfigured(): bool
     {
         return config('services.google_calendar.enabled')
-            && filled(config('services.google_calendar.calendar_id'))
             && filled(config('services.google_calendar.client_id'))
             && filled(config('services.google_calendar.client_secret'))
-            && filled(config('services.google_calendar.refresh_token'));
+            && (GoogleCalendarConnection::query()->exists() || filled(config('services.google_calendar.refresh_token')));
     }
 
     private function eventsUrl(): string
     {
-        return 'https://www.googleapis.com/calendar/v3/calendars/'.rawurlencode((string) config('services.google_calendar.calendar_id')).'/events?sendUpdates=all';
+        return 'https://www.googleapis.com/calendar/v3/calendars/'.rawurlencode($this->calendarId()).'/events?sendUpdates=all';
     }
 
     private function eventUrl(string $eventId): string
     {
-        return 'https://www.googleapis.com/calendar/v3/calendars/'.rawurlencode((string) config('services.google_calendar.calendar_id')).'/events/'.rawurlencode($eventId).'?sendUpdates=all';
+        return 'https://www.googleapis.com/calendar/v3/calendars/'.rawurlencode($this->calendarId()).'/events/'.rawurlencode($eventId).'?sendUpdates=all';
+    }
+
+    private function calendarId(): string
+    {
+        return GoogleCalendarConnection::query()->value('calendar_id') ?? (string) config('services.google_calendar.calendar_id');
     }
 }

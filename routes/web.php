@@ -2,6 +2,7 @@
 
 use App\Enums\Permiso;
 use App\Http\Controllers\CausaDocumentoController;
+use App\Http\Controllers\GoogleCalendarOAuthController;
 use App\Http\Middleware\EnsurePasswordChanged;
 use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Support\Facades\Route;
@@ -36,6 +37,10 @@ Route::middleware(['auth', EnsureUserIsActive::class, EnsurePasswordChanged::cla
     Route::livewire('admin/auditoria', 'pages::admin.auditoria.index')
         ->middleware('can:'.Permiso::AuditoriaVer->value)
         ->name('admin.auditoria.index');
+    Route::get('admin/google-calendar', [GoogleCalendarOAuthController::class, 'show'])->name('admin.google-calendar.show');
+    Route::get('admin/google-calendar/connect', [GoogleCalendarOAuthController::class, 'redirect'])->name('admin.google-calendar.connect');
+    Route::get('admin/google-calendar/callback', [GoogleCalendarOAuthController::class, 'callback'])->name('admin.google-calendar.callback');
+    Route::delete('admin/google-calendar', [GoogleCalendarOAuthController::class, 'destroy'])->name('admin.google-calendar.destroy');
 
     Route::prefix('causas')
         ->name('causas.')
