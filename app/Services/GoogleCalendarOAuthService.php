@@ -32,6 +32,23 @@ class GoogleCalendarOAuthService
         if (! is_string($email)) {
             throw new RuntimeException('Google no devolvió el correo de la cuenta.');
         }
-        GoogleCalendarConnection::query()->updateOrCreate(['id' => GoogleCalendarConnection::query()->value('id')], ['google_email' => $email, 'calendar_id' => 'primary', 'calendar_name' => 'Calendario principal', 'refresh_token' => $refresh, 'connected_by' => $user->id, 'connected_at' => now()]);
+        $connectionData = [
+            'google_email' => $email,
+            'calendar_id' => 'primary',
+            'calendar_name' => 'Calendario principal',
+            'refresh_token' => $refresh,
+            'connected_by' => $user->id,
+            'connected_at' => now(),
+        ];
+
+        $connection = GoogleCalendarConnection::query()->first();
+
+        if ($connection === null) {
+            GoogleCalendarConnection::query()->create($connectionData);
+
+            return;
+        }
+
+        $connection->update($connectionData);
     }
 }

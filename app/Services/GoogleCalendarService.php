@@ -122,7 +122,7 @@ class GoogleCalendarService
             ->post('https://oauth2.googleapis.com/token', [
                 'client_id' => config('services.google_calendar.client_id'),
                 'client_secret' => config('services.google_calendar.client_secret'),
-                'refresh_token' => GoogleCalendarConnection::query()->value('refresh_token') ?? config('services.google_calendar.refresh_token'),
+                'refresh_token' => $this->refreshToken(),
                 'grant_type' => 'refresh_token',
             ]);
 
@@ -156,5 +156,16 @@ class GoogleCalendarService
     private function calendarId(): string
     {
         return GoogleCalendarConnection::query()->value('calendar_id') ?? (string) config('services.google_calendar.calendar_id');
+    }
+
+    private function refreshToken(): ?string
+    {
+        $connection = GoogleCalendarConnection::query()->first();
+
+        if ($connection === null) {
+            return config('services.google_calendar.refresh_token');
+        }
+
+        return $connection->refresh_token;
     }
 }
