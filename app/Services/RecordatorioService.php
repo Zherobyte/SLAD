@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\AccionAuditoria;
 use App\Enums\EstadoRecordatorio;
 use App\Enums\Permiso;
+use App\Jobs\SincronizarRecordatorioGoogleCalendar;
 use App\Models\Causa;
 use App\Models\Recordatorio;
 use App\Models\User;
@@ -19,7 +20,7 @@ class RecordatorioService
     public function __construct(private AuditoriaService $auditoriaService) {}
 
     /**
-     * @param  array{titulo: string, descripcion: string|null, fecha_hora: CarbonImmutable, recordar_minutos_antes: int|null, user_id: int|null}  $attributes
+     * @param  array{titulo: string, descripcion: string|null, fecha_hora: CarbonImmutable, recordar_minutos_antes: int|null, user_id: int|null, google_calendar_incluir_creador?: bool}  $attributes
      */
     public function create(Causa $causa, User $actor, array $attributes): Recordatorio
     {
@@ -32,12 +33,13 @@ class RecordatorioService
         ]);
 
         $this->auditoriaService->record($recordatorio, AccionAuditoria::RecordatorioCreado, null, $recordatorio->getAttributes());
+        $this->syncGoogleCalendar($recordatorio);
 
         return $recordatorio;
     }
 
     /**
-     * @param  array{titulo: string, descripcion: string|null, fecha_hora: CarbonImmutable, recordar_minutos_antes: int|null, user_id: int|null}  $attributes
+     * @param  array{titulo: string, descripcion: string|null, fecha_hora: CarbonImmutable, recordar_minutos_antes: int|null, user_id: int|null, google_calendar_incluir_creador?: bool}  $attributes
      */
     public function update(Recordatorio $recordatorio, User $actor, array $attributes): Recordatorio
     {
@@ -61,6 +63,7 @@ class RecordatorioService
             Arr::only($before, array_keys($recordatorio->getChanges())),
             $recordatorio->getChanges(),
         );
+        $this->syncGoogleCalendar($recordatorio);
 
         return $recordatorio;
     }
@@ -71,6 +74,7 @@ class RecordatorioService
         $before = $recordatorio->getOriginal();
         $recordatorio->update(['estado' => EstadoRecordatorio::Completado]);
         $this->auditoriaService->record($recordatorio, AccionAuditoria::RecordatorioCompletado, $before, $recordatorio->getChanges());
+        $this->syncGoogleCalendar($recordatorio);
     }
 
     public function cancel(Recordatorio $recordatorio, User $actor): void
@@ -79,11 +83,12 @@ class RecordatorioService
         $before = $recordatorio->getOriginal();
         $recordatorio->update(['estado' => EstadoRecordatorio::Cancelado]);
         $this->auditoriaService->record($recordatorio, AccionAuditoria::RecordatorioCancelado, $before, $recordatorio->getChanges());
+        $this->syncGoogleCalendar($recordatorio);
     }
 
     /**
-     * @param  array{titulo: string, descripcion: string|null, fecha_hora: CarbonImmutable, recordar_minutos_antes: int|null, user_id: int|null}  $attributes
-     * @return array{causa_id: int, user_id: int, titulo: string, descripcion: string|null, fecha_hora: CarbonImmutable, recordar_minutos_antes: int|null, notificar_en: CarbonImmutable}
+     * @param  array{titulo: string, descripcion: string|null, fecha_hora: CarbonImmutable, recordar_minutos_antes: int|null, user_id: int|null, google_calendar_incluir_creador?: bool}  $attributes
+     * @return array{causa_id: int, user_id: int, titulo: string, descripcion: string|null, fecha_hora: CarbonImmutable, recordar_minutos_antes: int|null, notificar_en: CarbonImmutable, google_calendar_incluir_creador: bool}
      */
     private function payload(Causa $causa, User $actor, array $attributes): array
     {
@@ -111,6 +116,14 @@ class RecordatorioService
             'fecha_hora' => $attributes['fecha_hora'],
             'recordar_minutos_antes' => $attributes['recordar_minutos_antes'],
             'notificar_en' => $attributes['fecha_hora']->subMinutes($minutes),
+            'google_calendar_incluir_creador' => $attributes['google_calendar_incluir_creador'] ?? false,
         ];
+    }
+
+    private function syncGoogleCalendar(Recordatorio $recordatorio): void
+    {
+        if (config('services.google_calendar.enabled')) {
+            SincronizarRecordatorioGoogleCalendar::dispatch($recordatorio->id)->afterCommit();
+        }
     }
 }

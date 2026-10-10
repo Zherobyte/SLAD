@@ -38,6 +38,8 @@ new class extends Component {
 
     public string $userId = '';
 
+    public bool $googleCalendarIncluirCreador = false;
+
     public function mount(Causa $causa): void
     {
         Gate::authorize('view', $causa);
@@ -79,6 +81,7 @@ new class extends Component {
         $this->hora = $recordatorio->fecha_hora->format('H:i');
         $this->recordarMinutosAntes = (string) ($recordatorio->recordar_minutos_antes ?? 0);
         $this->userId = (string) $recordatorio->user_id;
+        $this->googleCalendarIncluirCreador = $recordatorio->google_calendar_incluir_creador;
         $this->showFormModal = true;
     }
 
@@ -116,6 +119,7 @@ new class extends Component {
             'fecha_hora' => CarbonImmutable::createFromFormat('Y-m-d H:i', $validated['fecha'].' '.$validated['hora'], config('app.timezone')),
             'recordar_minutos_antes' => (int) $validated['recordarMinutosAntes'],
             'user_id' => (int) $validated['userId'],
+            'google_calendar_incluir_creador' => $this->googleCalendarIncluirCreador,
         ];
 
         if ($recordatorio === null) {
@@ -226,6 +230,7 @@ new class extends Component {
         $this->hora = '';
         $this->recordarMinutosAntes = '60';
         $this->userId = '';
+        $this->googleCalendarIncluirCreador = false;
     }
 }; ?>
 
@@ -366,6 +371,19 @@ new class extends Component {
                     @endforeach
                 </flux:select>
             </div>
+            @if (config('services.google_calendar.enabled'))
+                @if ($userId !== (string) auth()->id())
+                    <flux:field variant="inline">
+                        <flux:checkbox wire:model="googleCalendarIncluirCreador" />
+                        <div>
+                            <flux:label>Incluirme también en la invitación de Google Calendar</flux:label>
+                            <flux:text class="text-sm">El destinatario siempre será invitado al calendario institucional.</flux:text>
+                        </div>
+                    </flux:field>
+                @else
+                    <flux:text class="text-sm">Recibirás la invitación de Google Calendar como destinatario del recordatorio.</flux:text>
+                @endif
+            @endif
             <div class="flex justify-end gap-3">
                 <flux:modal.close><flux:button variant="ghost" type="button">Cancelar</flux:button></flux:modal.close>
                 <flux:button variant="primary" type="submit" icon="check" wire:loading.attr="disabled">Guardar recordatorio</flux:button>

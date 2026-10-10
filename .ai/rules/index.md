@@ -4,6 +4,7 @@ Before planning or editing, find the row whose globs match the file's path and r
 
 | Applies to | Rule file |
 | --- | --- |
+| app/Services/**,app/Jobs/**,app/Models/Recordatorio.php,resources/views/components/causas/** | .ai/rules/causas.md |
 | **/* | .ai/rules/general.md |
 | app/Services/Imports/**,resources/views/pages/admin/importaciones/** | .ai/rules/importaciones.md |
 | app/**,resources/views/pages/causas/**,database/migrations/** | .ai/rules/migrations.md |

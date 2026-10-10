@@ -2,13 +2,18 @@
 
 use App\Enums\EstadoRecordatorio;
 use App\Enums\Permiso;
+use App\Jobs\SincronizarRecordatorioGoogleCalendar;
 use App\Models\Causa;
 use App\Models\Recordatorio;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\GoogleCalendarService;
 use App\Services\RecordatorioService;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 
 test('crea un recordatorio para el responsable de la causa por defecto', function () {
@@ -26,6 +31,91 @@ test('crea un recordatorio para el responsable de la causa por defecto', functio
         ->and($recordatorio->estado)->toBe(EstadoRecordatorio::Pendiente)
         ->and($recordatorio->notificar_en->format('Y-m-d H:i'))->toBe('2026-09-10 09:00');
     $this->assertDatabaseHas('auditorias', ['causa_id' => $causa->id, 'accion' => 'RECORDATORIO_CREADO']);
+});
+
+test('encola la sincronización con el calendario institucional cuando está habilitada', function () {
+    Queue::fake();
+    config()->set('services.google_calendar.enabled', true);
+    $abogado = User::factory()->abogado()->create();
+    $causa = Causa::factory()->create(['responsable_id' => $abogado->id]);
+    $this->actingAs($abogado);
+
+    $recordatorio = app(RecordatorioService::class)->create($causa, $abogado, [
+        'titulo' => 'PRESENTAR ESCRITO', 'descripcion' => null,
+        'fecha_hora' => CarbonImmutable::parse('2026-10-20 10:00:00'),
+        'recordar_minutos_antes' => 60, 'user_id' => null,
+        'google_calendar_incluir_creador' => false,
+    ]);
+
+    Queue::assertPushed(SincronizarRecordatorioGoogleCalendar::class, fn (SincronizarRecordatorioGoogleCalendar $job): bool => $job->recordatorioId === $recordatorio->id);
+});
+
+test('sincroniza el evento en el calendario institucional e invita al destinatario y al creador elegido', function () {
+    config()->set('services.google_calendar', [
+        'enabled' => true,
+        'calendar_id' => 'slad@example.com',
+        'client_id' => 'client-id',
+        'client_secret' => 'client-secret',
+        'refresh_token' => 'refresh-token',
+        'event_duration_minutes' => 30,
+    ]);
+    Http::fake([
+        'https://oauth2.googleapis.com/token' => Http::response(['access_token' => 'access-token']),
+        'https://www.googleapis.com/calendar/v3/calendars/*' => Http::response(['id' => 'google-event-123']),
+    ]);
+    $destinatario = User::factory()->abogado()->create(['email' => 'destinatario@gmail.com']);
+    $creador = User::factory()->abogado()->create(['email' => 'creador@gmail.com']);
+    $causa = Causa::factory()->create(['responsable_id' => $destinatario->id, 'numero_causa' => 'C-123-2026']);
+    $recordatorio = Recordatorio::factory()->create([
+        'causa_id' => $causa->id,
+        'user_id' => $destinatario->id,
+        'created_by' => $creador->id,
+        'titulo' => 'AUDIENCIA',
+        'fecha_hora' => CarbonImmutable::parse('2026-10-20 10:00:00'),
+        'recordar_minutos_antes' => 60,
+        'google_calendar_incluir_creador' => true,
+    ]);
+
+    app(GoogleCalendarService::class)->sync($recordatorio);
+
+    expect($recordatorio->refresh()->google_calendar_event_id)->toBe('google-event-123');
+    Http::assertSent(function (Request $request): bool {
+        $data = $request->data();
+
+        return $request->method() === 'POST'
+            && str_contains($request->url(), 'calendars/slad%40example.com/events?sendUpdates=all')
+            && $data['summary'] === '[SLAD] AUDIENCIA'
+            && $data['reminders']['overrides'][0]['minutes'] === 60
+            && $data['attendees'] === [
+                ['email' => 'destinatario@gmail.com'],
+                ['email' => 'creador@gmail.com'],
+            ];
+    });
+});
+
+test('elimina del calendario un recordatorio completado o cancelado', function () {
+    config()->set('services.google_calendar', [
+        'enabled' => true,
+        'calendar_id' => 'slad@example.com',
+        'client_id' => 'client-id',
+        'client_secret' => 'client-secret',
+        'refresh_token' => 'refresh-token',
+        'event_duration_minutes' => 30,
+    ]);
+    Http::fake([
+        'https://oauth2.googleapis.com/token' => Http::response(['access_token' => 'access-token']),
+        'https://www.googleapis.com/calendar/v3/calendars/*' => Http::response(status: 204),
+    ]);
+    $recordatorio = Recordatorio::factory()->create([
+        'estado' => EstadoRecordatorio::Completado,
+        'google_calendar_event_id' => 'google-event-123',
+    ]);
+
+    app(GoogleCalendarService::class)->sync($recordatorio);
+
+    expect($recordatorio->refresh()->google_calendar_event_id)->toBeNull();
+    Http::assertSent(fn (Request $request): bool => $request->method() === 'DELETE'
+        && str_contains($request->url(), 'events/google-event-123?sendUpdates=all'));
 });
 
 test('un abogado no puede abrir recordatorios de una causa ajena ni reasignarlos', function () {
