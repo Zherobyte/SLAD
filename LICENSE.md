@@ -1,4 +1,4 @@
-# SLAD — SISTEMA LOGÍSTICO DE ADMINISTRACIÓN DE DERECHO
+# SLAD — SISTEMA LOGÍSTICO DE ADMINISTRACIÓN
 
 ## LICENCIA DE SOFTWARE PROPIETARIO
 
@@ -9,7 +9,7 @@ Copyright © 2026. Todos los derechos reservados.
 
 ### 1. TITULARIDAD
 
-El software denominado “SLAD — Sistema Logístico de Administración de Derecho”, incluyendo su código fuente, código objeto, estructura, diseño, modelos de datos, documentación, interfaces, componentes, módulos y demás elementos originales, es software propietario.
+El software denominado “SLAD — Sistema Logístico de Administración”, incluyendo su código fuente, código objeto, estructura, diseño, modelos de datos, documentación, interfaces, componentes, módulos y demás elementos originales, es software propietario.
 
 Salvo pacto escrito en contrario, la titularidad del software y de su código fuente permanece exclusivamente en sus titulares de derechos.
 
