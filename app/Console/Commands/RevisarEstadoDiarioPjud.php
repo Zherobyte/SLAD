@@ -54,14 +54,20 @@ class RevisarEstadoDiarioPjud extends Command
         $diasAtras = filled($this->option('fecha')) ? 0 : max(0, (int) config('pjud.estado_diario.dias_atras', 1));
         $fechas = collect(range(0, $diasAtras))->map(fn (int $dias) => $fecha->subDays($dias));
 
-        $consultas = $tribunales->toBase()->crossJoin($fechas)->values();
+        /** @var list<array{int, string}> $consultas  [código tribunal, fecha] */
+        $consultas = [];
+        foreach ($tribunales as $tribunal) {
+            foreach ($fechas as $dia) {
+                $consultas[] = [(int) $tribunal->codigo, $dia->toDateString()];
+            }
+        }
 
-        foreach ($consultas as $indice => [$tribunal, $dia]) {
-            $job = new ConsultarEstadoDiarioTribunal($tribunal->codigo, $dia->toDateString());
+        foreach ($consultas as $indice => [$codigo, $dia]) {
+            $job = new ConsultarEstadoDiarioTribunal($codigo, $dia);
 
             if ($this->option('sync')) {
                 dispatch_sync($job);
-                if ($pausa > 0 && $indice < $consultas->count() - 1) {
+                if ($pausa > 0 && $indice < count($consultas) - 1) {
                     sleep($pausa);
                 }
 
