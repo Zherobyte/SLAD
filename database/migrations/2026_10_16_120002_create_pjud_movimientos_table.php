@@ -19,6 +19,7 @@ return new class extends Migration
             $table->unsignedInteger('tribunal_pjud_codigo')->index();
             $table->date('fecha_estado_diario')->index();
             $table->string('numero_ingreso', 100);
+            $table->string('tipo_coincidencia', 20)->default('exacta'); // exacta | compatible | parcial
             $table->string('tribunal_nombre', 180);
             $table->string('caratulado', 255)->nullable();
             $table->text('tramite')->nullable();
