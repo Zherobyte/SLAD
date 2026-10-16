@@ -94,8 +94,7 @@ class DetectorMovimientosPjud
             ->select(['id', 'nombre', 'numero_causa', 'juzgado_id', 'responsable_id'])
             ->with('juzgado:id,nombre,tribunal_pjud_codigo')
             ->whereHas('juzgado', fn ($query) => $query->where('tribunal_pjud_codigo', $tribunal->codigo))
-            ->whereNotNull('numero_causa')
-            ->where('numero_causa', '!=', '')
+            ->consultablesPjud() // sólo vigentes: una causa cerrada nunca genera aviso
             ->get()
             ->toBase()
             ->groupBy(fn (Causa $causa) => (string) NormalizadorPjud::numeroIngreso($causa->numero_causa))
