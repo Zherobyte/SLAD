@@ -27,7 +27,16 @@ Scheduler (cada hora, 08:00–18:00)
 
 Una fila del Estado Diario corresponde a una causa de SLAD solo si coinciden los dos datos:
 
-1. **Número de ingreso:** el número del listado tiene que ser igual a `causas.numero_causa`. Antes de comparar, ambos se normalizan. Por ejemplo, `c-01234-2025`, `C 1234 - 2025` y `Rol C-1234-2025` quedan como `C-1234-2025`, y `(AMP) 11-2026` queda como `AMP-11-2026`. Si en SLAD la causa está guardada sin letra (`1234-2025`), calza por número y año.
+1. **Número de ingreso:** se compara el número del listado con `causas.numero_causa`, aunque en SLAD esté guardado incompleto. Siempre se compara dentro del mismo tribunal:
+
+   | En SLAD | PJUD informa | Resultado |
+   | --- | --- | --- |
+   | `Ordinaria-5329-2025` | `Ordinaria-5329-2025` | **Exacta** |
+   | `O-5329-2025` o `5329-2025` | `Ordinaria-5329-2025` | **Compatible**: falta la letra o está abreviada |
+   | `5329` u `O-5329` | `Ordinaria-5329-2025` | **Parcial**: falta el año. El evento incluye "⚠️ Coincidencia parcial… verifique" |
+   | `V-5329-2025` o `5329-2024` | `Ordinaria-5329-2025` | No calza: otra letra u otro año |
+
+   Antes de comparar se ignoran mayúsculas, ceros a la izquierda y paréntesis (`(AMP) 11-2026`). Las coincidencias parciales se pueden desactivar con `PJUD_COINCIDENCIA_PARCIAL=false`. El tipo de coincidencia queda guardado en `pjud_movimientos.tipo_coincidencia`.
 2. **Nombre del tribunal:** el tribunal de la fila tiene que ser el tribunal PJUD vinculado al juzgado de la causa. Al comparar se ignoran mayúsculas, tildes y `º`. Si el listado no trae una columna de tribunal, se usa el tribunal que se consultó.
 
 ### Sin avisos duplicados
