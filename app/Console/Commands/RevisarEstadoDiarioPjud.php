@@ -36,14 +36,14 @@ class RevisarEstadoDiarioPjud extends Command
             ? CarbonImmutable::parse((string) $this->option('fecha'))->startOfDay()
             : $ahora->toImmutable()->startOfDay();
 
-        // Sólo tribunales vinculados a juzgados que tengan causas vigentes con número.
+        // Sólo tribunales donde SLAD tiene causas VIGENTES con número (las cerradas no se consultan).
         $tribunales = TribunalPjud::query()
-            ->whereHas('juzgados.causas', fn ($query) => $query->whereNotNull('numero_causa')->where('numero_causa', '!=', ''))
+            ->whereHas('juzgados.causas', fn ($query) => $query->consultablesPjud())
             ->orderBy('codigo')
             ->get(['codigo', 'nombre']);
 
         if ($tribunales->isEmpty()) {
-            $this->warn('No hay tribunales con causas vinculadas a un código PJUD. Ejecute: php artisan pjud:vincular-juzgados');
+            $this->warn('No hay tribunales con causas vigentes vinculadas a un código PJUD. Revise el estado de las causas o ejecute: php artisan pjud:vincular-juzgados');
 
             return self::SUCCESS;
         }
