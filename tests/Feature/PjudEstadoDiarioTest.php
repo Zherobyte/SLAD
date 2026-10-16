@@ -252,3 +252,38 @@ test('las causas cerradas no se consultan ni generan avisos', function () {
 
     expect(PjudMovimiento::query()->pluck('causa_id')->all())->toBe([$vigente->id]);
 });
+
+test('reconoce números incompletos de SLAD: compatibles y parciales dentro del mismo tribunal', function () {
+    Queue::fake([NotificarMovimientoPjudGoogleCalendar::class]);
+    $tribunal = tribunalPjud(6054001, '1º JUZGADO DE GARANTIA DE SANTIAGO', 14);
+    $juzgado = Juzgado::factory()->create(['tribunal_pjud_codigo' => $tribunal->codigo]);
+    $vigente = estadoCausaId('VIGENTE');
+    $soloNumero = Causa::factory()->create(['estado_causa_id' => $vigente, 'juzgado_id' => $juzgado->id, 'numero_causa' => '5329']);
+    $abreviada = Causa::factory()->create(['estado_causa_id' => $vigente, 'juzgado_id' => $juzgado->id, 'numero_causa' => 'O-5329-2025']);
+    Causa::factory()->create(['estado_causa_id' => $vigente, 'juzgado_id' => $juzgado->id, 'numero_causa' => '5329-2024']); // otro año
+    Causa::factory()->create(['estado_causa_id' => $vigente, 'juzgado_id' => $juzgado->id, 'numero_causa' => 'V-5329-2025']); // otra letra
+    Causa::factory()->create([
+        'estado_causa_id' => $vigente,
+        'juzgado_id' => Juzgado::factory()->create(['tribunal_pjud_codigo' => tribunalPjud(6054002, '2º JUZGADO DE GARANTIA DE SANTIAGO', 14)->codigo])->id,
+        'numero_causa' => '5329',
+    ]); // mismo número, otro tribunal
+
+    fuenteFalsa([new EntradaEstadoDiario('Ordinaria-5329-2025', null, 'MINISTERIO PUBLICO / X', '1')]);
+    dispatch_sync(new ConsultarEstadoDiarioTribunal($tribunal->codigo, '2026-10-16'));
+
+    expect(PjudMovimiento::query()->orderBy('causa_id')->pluck('tipo_coincidencia', 'causa_id')->all())
+        ->toBe([$soloNumero->id => 'parcial', $abreviada->id => 'compatible']);
+});
+
+test('la coincidencia parcial se puede desactivar', function () {
+    Queue::fake([NotificarMovimientoPjudGoogleCalendar::class]);
+    config()->set('pjud.coincidencia_parcial', false);
+    $tribunal = tribunalPjud(6054001, '1º JUZGADO DE GARANTIA DE SANTIAGO', 14);
+    $juzgado = Juzgado::factory()->create(['tribunal_pjud_codigo' => $tribunal->codigo]);
+    Causa::factory()->create(['estado_causa_id' => estadoCausaId('VIGENTE'), 'juzgado_id' => $juzgado->id, 'numero_causa' => '5329']);
+
+    fuenteFalsa([new EntradaEstadoDiario('Ordinaria-5329-2025', null, 'X', '1')]);
+    dispatch_sync(new ConsultarEstadoDiarioTribunal($tribunal->codigo, '2026-10-16'));
+
+    expect(PjudMovimiento::query()->count())->toBe(0);
+});
