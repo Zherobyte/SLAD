@@ -13,6 +13,12 @@ jobs:
   ci:
     runs-on: ubuntu-latest
 
+    # CI no tiene MySQL: la instalación (composer setup → migrate) usa SQLite.
+    # Los tests ya usan SQLite en memoria según phpunit.xml.
+    env:
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ${{ github.workspace }}/database/database.sqlite
+
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
