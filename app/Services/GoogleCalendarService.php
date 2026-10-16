@@ -88,12 +88,16 @@ class GoogleCalendarService
             ->values()
             ->all();
 
-        $numeroCausa = $causa?->numero_causa ?: $movimiento->numero_ingreso;
+        // Número oficial del PJUD (completo), aunque en SLAD esté incompleto.
+        $numeroCausa = $movimiento->numero_ingreso ?: (string) $causa?->numero_causa;
 
         return [
             'summary' => (string) ($config['asunto'] ?? '🚩 Actividad P. Judicial'),
             'description' => collect([
                 "N° de causa: {$numeroCausa}",
+                $movimiento->tipo_coincidencia === 'parcial'
+                    ? "⚠️ Coincidencia parcial: en SLAD figura \"{$causa?->numero_causa}\" y el PJUD informa \"{$movimiento->numero_ingreso}\". Verifique que sea la misma causa."
+                    : null,
                 "Tribunal: {$movimiento->tribunal_nombre}",
                 $causa !== null ? "Causa SLAD: {$causa->nombre}" : null,
                 filled($movimiento->caratulado) ? "Partes: {$movimiento->caratulado}" : null,
