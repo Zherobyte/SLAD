@@ -5,6 +5,7 @@ namespace App\Services\Pjud;
 use App\Models\TribunalPjud;
 use Carbon\CarbonImmutable;
 use DOMDocument;
+use DOMElement;
 use DOMXPath;
 use GuzzleHttp\Cookie\CookieJar;
 use Illuminate\Http\Client\PendingRequest;
@@ -62,7 +63,7 @@ class EstadoDiarioPjudClient implements FuenteEstadoDiario
             $campo = $campos[$clave] ?? null;
 
             // Un campo vacío en la configuración significa "no enviar este dato".
-            if (filled($campo) && $valor !== null) {
+            if (filled($campo)) {
                 $datos[(string) $campo] = $valor;
             }
         }
@@ -126,12 +127,22 @@ class EstadoDiarioPjudClient implements FuenteEstadoDiario
         $xpath = new DOMXPath($dom);
         $encabezados = [];
         foreach ($xpath->query('//table//th') ?: [] as $th) {
-            $encabezados[] = trim((string) preg_replace('/\s+/u', ' ', $th->textContent));
+            if ($th instanceof DOMElement) {
+                $encabezados[] = trim((string) preg_replace('/\s+/u', ' ', $th->textContent));
+            }
         }
 
         $partes = [];
         foreach ($xpath->query('//table//tbody/tr') ?: [] as $tr) {
+            if (! $tr instanceof DOMElement) {
+                continue;
+            }
+
             foreach ($xpath->query('./td', $tr) ?: [] as $indice => $td) {
+                if (! $td instanceof DOMElement) {
+                    continue;
+                }
+
                 $titulo = $encabezados[$indice] ?? '';
                 $valor = trim((string) preg_replace('/\s+/u', ' ', $td->textContent));
 

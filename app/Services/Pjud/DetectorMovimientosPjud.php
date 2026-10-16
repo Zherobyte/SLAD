@@ -86,7 +86,7 @@ class DetectorMovimientosPjud
     }
 
     /**
-     * @return Collection<string, Collection<int, Causa>> número normalizado → causas
+     * @return Collection<array-key, Collection<int, Causa>> número normalizado → causas
      */
     private function causasDelTribunal(TribunalPjud $tribunal): Collection
     {
@@ -97,6 +97,7 @@ class DetectorMovimientosPjud
             ->whereNotNull('numero_causa')
             ->where('numero_causa', '!=', '')
             ->get()
+            ->toBase()
             ->groupBy(fn (Causa $causa) => (string) NormalizadorPjud::numeroIngreso($causa->numero_causa))
             ->forget('');
     }

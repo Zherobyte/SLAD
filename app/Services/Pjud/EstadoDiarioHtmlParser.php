@@ -76,10 +76,16 @@ class EstadoDiarioHtmlParser
         $datos = [];
 
         foreach ($xpath->query('.//tr', $tabla) ?: [] as $tr) {
+            if (! $tr instanceof DOMElement) {
+                continue;
+            }
+
             $celdas = [];
 
             foreach ($xpath->query('./th|./td', $tr) ?: [] as $celda) {
-                $celdas[] = trim((string) preg_replace('/\s+/u', ' ', $celda->textContent));
+                if ($celda instanceof DOMElement) {
+                    $celdas[] = trim((string) preg_replace('/\s+/u', ' ', $celda->textContent));
+                }
             }
 
             if ($celdas === []) {
