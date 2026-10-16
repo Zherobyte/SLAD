@@ -1,6 +1,6 @@
 # Monitoreo del Estado Diario PJUD → Google Calendar
 
-Este módulo revisa cada hora, de **08:00 a 18:00**, el Estado Diario del Poder Judicial. Solo consulta los tribunales donde SLAD tiene causas. Cuando una causa de SLAD aparece en el listado, crea un evento en el calendario Google institucional:
+Este módulo revisa cada hora, de **08:00 a 18:00**, el Estado Diario del Poder Judicial. Solo consulta las causas **vigentes** (Estado de causa = `VIGENTE`) y solo los tribunales donde SLAD tiene al menos una causa vigente. Las causas cerradas no se consultan. Cuando una causa de SLAD aparece en el listado, crea un evento en el calendario Google institucional:
 
 - **Asunto:** `🚩 Actividad P. Judicial`
 - **Alerta:** 1 minuto antes, por correo y como notificación emergente.
@@ -198,4 +198,5 @@ Lo que cubren:
 | "No hay tribunales con causas vinculadas" | Ejecute `pjud:vincular-juzgados` y confirme que las causas tienen juzgado y `numero_causa`. |
 | "No se reconocieron filas" | Puede ser que el PJUD aún no publique esa fecha (responde "No se ha encontrado información de estados diarios"). Pruebe con el día hábil anterior. Si sigue fallando, use `--guardar-html` y revise la respuesta. |
 | Se detectan movimientos, pero no aparece el evento | Revise `GOOGLE_CALENDAR_ENABLED`, la conexión en Administración y que el worker de cola esté corriendo. Mire `storage/logs/laravel.log`. |
+| Una causa vigente no se revisa | Confirme que su **Estado de causa** sea `VIGENTE`. Las causas sin estado o cerradas se omiten (se puede cambiar con `PJUD_ESTADOS_CAUSA`). |
 | Una causa no calza | Compare su `numero_causa` con el del listado (ej. `C-1234-2025`) y el código PJUD de su juzgado. |
