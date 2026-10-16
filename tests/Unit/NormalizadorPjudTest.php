@@ -29,3 +29,20 @@ test('normaliza nombres de tribunal entre SLAD y el PJUD', function () {
         ->and(NormalizadorPjud::nombreTribunal('Juzgado de Garantía de Coyhaique', $equivalencias))->toBe('JUZGADO DE GARANTIA DE COIHAIQUE')
         ->and(NormalizadorPjud::sinOrdinalInicial('1 JUZGADO DE LETRAS DE PEUMO'))->toBe('JUZGADO DE LETRAS DE PEUMO');
 });
+
+test('reconoce el número de ingreso completo e incompleto registrado en SLAD', function (string $pjud, string $slad, ?string $esperado) {
+    expect(NormalizadorPjud::coincidencia(
+        NormalizadorPjud::componentes($pjud),
+        NormalizadorPjud::componentes($slad),
+    ))->toBe($esperado);
+})->with([
+    'formato completo' => ['Ordinaria-5329-2025', 'Ordinaria-5329-2025', 'exacta'],
+    'ceros a la izquierda' => ['C-5329-2025', 'c-05329-2025', 'exacta'],
+    'letra abreviada' => ['Ordinaria-5329-2025', 'O-5329-2025', 'compatible'],
+    'sin letra' => ['Ordinaria-5329-2025', '5329-2025', 'compatible'],
+    'solo número' => ['Ordinaria-5329-2025', '5329', 'parcial'],
+    'letra sin año' => ['C-5329-2025', 'C-5329', 'parcial'],
+    'otra letra' => ['C-5329-2025', 'V-5329-2025', null],
+    'otro año' => ['C-5329-2025', 'C-5329-2024', null],
+    'otro número' => ['C-5329-2025', 'C-532-2025', null],
+]);
