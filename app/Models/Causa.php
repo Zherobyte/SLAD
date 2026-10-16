@@ -109,6 +109,12 @@ class Causa extends Model
         return $this->hasMany(Recordatorio::class)->orderBy('fecha_hora');
     }
 
+    /** @return HasMany<PjudMovimiento, $this> */
+    public function pjudMovimientos(): HasMany
+    {
+        return $this->hasMany(PjudMovimiento::class)->orderByDesc('fecha_estado_diario')->orderByDesc('id');
+    }
+
     /** @param Builder<Causa> $query */
     public function scopeVisibleFor(Builder $query, User $user): Builder
     {
