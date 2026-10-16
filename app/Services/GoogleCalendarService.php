@@ -7,6 +7,7 @@ use App\Models\GoogleCalendarConnection;
 use App\Models\PjudMovimiento;
 use App\Models\Recordatorio;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -100,7 +101,7 @@ class GoogleCalendarService
                     ? (is_numeric($movimiento->tramite) ? "Providencias del día: {$movimiento->tramite}" : "Trámite: {$movimiento->tramite}")
                     : null,
                 filled($movimiento->detalle) ? "Detalle PJUD: {$movimiento->detalle}" : null,
-                'Estado Diario del '.$movimiento->fecha_estado_diario->format('d-m-Y'),
+                'Estado Diario del '.CarbonImmutable::parse($movimiento->fecha_estado_diario)->format('d-m-Y'),
                 $causa !== null ? 'Ver en SLAD: '.route('causas.show', $causa) : null,
             ])->filter()->implode("\n"),
             'start' => ['dateTime' => $inicio->toRfc3339String(), 'timeZone' => config('app.timezone')],
