@@ -21,6 +21,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Causas que se monitorean
+    |--------------------------------------------------------------------------
+    |
+    | Sólo se consultan las causas cuyo "Estado de causa" está en esta lista
+    | (catálogo estados_causa). Por defecto sólo VIGENTE: las CERRADAS no se
+    | consultan, y un tribunal cuyas causas están todas cerradas no se revisa.
+    | Varios estados separados por coma, ej. PJUD_ESTADOS_CAUSA=VIGENTE,SUSPENDIDA
+    |
+    */
+    'estados_causa_consultables' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('PJUD_ESTADOS_CAUSA', 'VIGENTE')),
+    ))),
+
+    /*
+    |--------------------------------------------------------------------------
     | Horario de consultas
     |--------------------------------------------------------------------------
     |
