@@ -37,6 +37,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Coincidencia parcial del número de ingreso
+    |--------------------------------------------------------------------------
+    |
+    | En SLAD el número no siempre se guardó completo. El match reconoce:
+    |   exacta     "Ordinaria-5329-2025" = "Ordinaria-5329-2025"
+    |   compatible "O-5329-2025" o "5329-2025"  (falta o se abrevió la letra)
+    |   parcial    "5329" o "O-5329"            (falta el año)
+    | Siempre dentro del mismo tribunal. Las parciales se avisan con una nota
+    | para verificar. Con false, sólo se avisan exactas y compatibles.
+    |
+    */
+    'coincidencia_parcial' => (bool) env('PJUD_COINCIDENCIA_PARCIAL', true),
+
+    /*
+    |--------------------------------------------------------------------------
     | Horario de consultas
     |--------------------------------------------------------------------------
     |
