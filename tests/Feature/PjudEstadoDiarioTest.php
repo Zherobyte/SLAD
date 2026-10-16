@@ -3,6 +3,7 @@
 use App\Jobs\ConsultarEstadoDiarioTribunal;
 use App\Jobs\NotificarMovimientoPjudGoogleCalendar;
 use App\Models\Causa;
+use App\Models\EstadoCausa;
 use App\Models\Juzgado;
 use App\Models\PjudMovimiento;
 use App\Models\TribunalPjud;
@@ -26,6 +27,11 @@ function tribunalPjud(int $codigo, string $nombre, int $tipo = 6): TribunalPjud
         'nombre' => $nombre,
         'nombre_normalizado' => NormalizadorPjud::nombreTribunal($nombre, (array) config('pjud.equivalencias_nombre')),
     ]);
+}
+
+function estadoCausaId(string $nombre): int
+{
+    return EstadoCausa::query()->firstOrCreate(['nombre' => $nombre])->id;
 }
 
 /** @param list<EntradaEstadoDiario> $entradas */
@@ -58,7 +64,7 @@ test('no consulta al PJUD fuera del horario de 8 a 18 horas', function () {
     Queue::fake();
     $this->travelTo(CarbonImmutable::parse('2026-10-16 19:00:00'));
     $tribunal = tribunalPjud(6053101, '1º JUZGADO CIVIL DE SANTIAGO');
-    Causa::factory()->create(['juzgado_id' => Juzgado::factory()->create(['tribunal_pjud_codigo' => $tribunal->codigo])->id, 'numero_causa' => 'C-1-2026']);
+    Causa::factory()->create(['estado_causa_id' => estadoCausaId('VIGENTE'), 'juzgado_id' => Juzgado::factory()->create(['tribunal_pjud_codigo' => $tribunal->codigo])->id, 'numero_causa' => 'C-1-2026']);
 
     $this->artisan('pjud:revisar-estado-diario')->assertSuccessful();
 
@@ -72,7 +78,7 @@ test('consulta sólo los tribunales donde SLAD tiene causas', function () {
     $sinCausas = tribunalPjud(6053102, '2º JUZGADO CIVIL DE SANTIAGO');
     $juzgado = Juzgado::factory()->create(['tribunal_pjud_codigo' => $conCausas->codigo]);
     Juzgado::factory()->create(['tribunal_pjud_codigo' => $sinCausas->codigo]);
-    Causa::factory()->create(['juzgado_id' => $juzgado->id, 'numero_causa' => 'C-1234-2025']);
+    Causa::factory()->create(['estado_causa_id' => estadoCausaId('VIGENTE'), 'juzgado_id' => $juzgado->id, 'numero_causa' => 'C-1234-2025']);
 
     $this->artisan('pjud:revisar-estado-diario')->assertSuccessful();
 
@@ -84,8 +90,8 @@ test('detecta el movimiento sólo cuando calzan número de ingreso y tribunal, s
     Queue::fake([NotificarMovimientoPjudGoogleCalendar::class]);
     $tribunal = tribunalPjud(6053101, '1º JUZGADO CIVIL DE SANTIAGO');
     $juzgado = Juzgado::factory()->create(['nombre' => '1º Juzgado Civil de Santiago', 'tribunal_pjud_codigo' => $tribunal->codigo]);
-    $causa = Causa::factory()->create(['juzgado_id' => $juzgado->id, 'numero_causa' => 'C-1234-2025']);
-    Causa::factory()->create(['juzgado_id' => $juzgado->id, 'numero_causa' => 'C-9999-2025']);
+    $causa = Causa::factory()->create(['estado_causa_id' => estadoCausaId('VIGENTE'), 'juzgado_id' => $juzgado->id, 'numero_causa' => 'C-1234-2025']);
+    Causa::factory()->create(['estado_causa_id' => estadoCausaId('VIGENTE'), 'juzgado_id' => $juzgado->id, 'numero_causa' => 'C-9999-2025']);
 
     fuenteFalsa([
         new EntradaEstadoDiario('C-01234-2025', '1° Juzgado Civil de Santiago', 'PÉREZ / BANCO', 'Resolución'),
@@ -120,7 +126,7 @@ test('crea el evento 🚩 Actividad P. Judicial con alerta de 1 minuto y el núm
     ]);
     $tribunal = tribunalPjud(6053101, '1º JUZGADO CIVIL DE SANTIAGO');
     $responsable = User::factory()->abogado()->create(['email' => 'abogado@empresa.cl']);
-    $causa = Causa::factory()->create([
+    $causa = Causa::factory()->create(['estado_causa_id' => estadoCausaId('VIGENTE'),
         'juzgado_id' => Juzgado::factory()->create(['tribunal_pjud_codigo' => $tribunal->codigo])->id,
         'responsable_id' => $responsable->id,
         'numero_causa' => 'C-1234-2025',
@@ -176,7 +182,7 @@ test('revisa también el día anterior porque el PJUD publica con desfase', func
     config()->set('pjud.estado_diario.dias_atras', 1);
     $this->travelTo(CarbonImmutable::parse('2026-10-16 10:00:00'));
     $tribunal = tribunalPjud(6053101, '1º JUZGADO CIVIL DE SANTIAGO');
-    Causa::factory()->create(['juzgado_id' => Juzgado::factory()->create(['tribunal_pjud_codigo' => $tribunal->codigo])->id, 'numero_causa' => 'C-1-2026']);
+    Causa::factory()->create(['estado_causa_id' => estadoCausaId('VIGENTE'), 'juzgado_id' => Juzgado::factory()->create(['tribunal_pjud_codigo' => $tribunal->codigo])->id, 'numero_causa' => 'C-1-2026']);
 
     $this->artisan('pjud:revisar-estado-diario')->assertSuccessful();
 
@@ -218,4 +224,31 @@ test('consulta el endpoint de estados diarios de pjud.cl con el código del trib
         && (string) $request['cod_tribunal'] === '6053101'
         && (string) $request['tipo_juzgado'] === '6'
         && $request['date'] === '15-10-2026');
+});
+
+test('las causas cerradas no se consultan ni generan avisos', function () {
+    Queue::fake();
+    $this->travelTo(CarbonImmutable::parse('2026-10-16 10:00:00'));
+    $soloCerradas = tribunalPjud(6053102, '2º JUZGADO CIVIL DE SANTIAGO');
+    $conVigente = tribunalPjud(6053101, '1º JUZGADO CIVIL DE SANTIAGO');
+    Causa::factory()->create(['estado_causa_id' => estadoCausaId('CERRADA'), 'juzgado_id' => Juzgado::factory()->create(['tribunal_pjud_codigo' => $soloCerradas->codigo])->id, 'numero_causa' => 'C-7-2020']);
+    $juzgado = Juzgado::factory()->create(['nombre' => '1º Juzgado Civil de Santiago', 'tribunal_pjud_codigo' => $conVigente->codigo]);
+    Causa::factory()->create(['estado_causa_id' => estadoCausaId('CERRADA'), 'juzgado_id' => $juzgado->id, 'numero_causa' => 'C-5-2020']);
+    Causa::factory()->create(['estado_causa_id' => null, 'juzgado_id' => $juzgado->id, 'numero_causa' => 'C-6-2020']);
+    $vigente = Causa::factory()->create(['estado_causa_id' => estadoCausaId('VIGENTE'), 'juzgado_id' => $juzgado->id, 'numero_causa' => 'C-1234-2025']);
+
+    // El tribunal que sólo tiene causas cerradas no se consulta.
+    $this->artisan('pjud:revisar-estado-diario')->assertSuccessful();
+    Queue::assertPushed(ConsultarEstadoDiarioTribunal::class, 1);
+    Queue::assertPushed(ConsultarEstadoDiarioTribunal::class, fn ($job) => $job->tribunalCodigo === $conVigente->codigo);
+
+    // En un tribunal consultado, sólo la causa vigente genera movimiento.
+    fuenteFalsa([
+        new EntradaEstadoDiario('C-5-2020', null, 'CERRADA', '1'),
+        new EntradaEstadoDiario('C-6-2020', null, 'SIN ESTADO', '1'),
+        new EntradaEstadoDiario('C-1234-2025', null, 'VIGENTE', '1'),
+    ]);
+    dispatch_sync(new ConsultarEstadoDiarioTribunal($conVigente->codigo, '2026-10-16'));
+
+    expect(PjudMovimiento::query()->pluck('causa_id')->all())->toBe([$vigente->id]);
 });
