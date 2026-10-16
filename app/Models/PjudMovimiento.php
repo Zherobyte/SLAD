@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'tribunal_pjud_codigo',
     'fecha_estado_diario',
     'numero_ingreso',
+    'tipo_coincidencia',
     'tribunal_nombre',
     'caratulado',
     'tramite',
