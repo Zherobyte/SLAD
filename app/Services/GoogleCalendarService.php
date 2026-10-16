@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\EstadoRecordatorio;
 use App\Models\GoogleCalendarConnection;
+use App\Models\PjudMovimiento;
 use App\Models\Recordatorio;
 use App\Models\User;
 use Illuminate\Http\Client\PendingRequest;
@@ -37,6 +38,82 @@ class GoogleCalendarService
         if ($recordatorio->google_calendar_event_id === null) {
             $recordatorio->forceFill(['google_calendar_event_id' => $eventId])->save();
         }
+    }
+
+    /**
+     * Crea el evento "🚩 Actividad P. Judicial" para un movimiento detectado
+     * en el Estado Diario del PJUD. Devuelve el id del evento, o null si
+     * Google Calendar no está configurado.
+     */
+    public function crearEventoActividadJudicial(PjudMovimiento $movimiento): ?string
+    {
+        if (! $this->isConfigured()) {
+            return null;
+        }
+
+        $eventId = $this->request()
+            ->post($this->eventsUrl(), $this->actividadJudicialPayload($movimiento))
+            ->throw()
+            ->json('id');
+
+        if (! is_string($eventId) || blank($eventId)) {
+            throw new RuntimeException('Google Calendar no devolvió el identificador del evento.');
+        }
+
+        return $eventId;
+    }
+
+    /** @return array<string, mixed> */
+    private function actividadJudicialPayload(PjudMovimiento $movimiento): array
+    {
+        $movimiento->loadMissing(['causa.responsable:id,name,email', 'causa.juzgado:id,nombre']);
+        $causa = $movimiento->causa;
+        $config = (array) config('pjud.notificacion');
+
+        $inicio = now()->addMinutes(max(1, (int) ($config['minutos_hasta_evento'] ?? 2)));
+        $fin = $inicio->addMinutes(max(1, (int) ($config['duracion_minutos'] ?? 15)));
+        $alerta = max(0, (int) ($config['alerta_minutos_antes'] ?? 1));
+
+        $correos = (array) ($config['correos_adicionales'] ?? []);
+        if (($config['invitar_responsable'] ?? true) && filled($causa?->responsable?->email)) {
+            array_unshift($correos, $causa->responsable->email);
+        }
+
+        $attendees = collect($correos)
+            ->map(fn (string $correo) => mb_strtolower(trim($correo)))
+            ->filter(fn (string $correo) => filter_var($correo, FILTER_VALIDATE_EMAIL) !== false)
+            ->unique()
+            ->map(fn (string $correo) => ['email' => $correo])
+            ->values()
+            ->all();
+
+        $numeroCausa = $causa?->numero_causa ?: $movimiento->numero_ingreso;
+
+        return [
+            'summary' => (string) ($config['asunto'] ?? '🚩 Actividad P. Judicial'),
+            'description' => collect([
+                "N° de causa: {$numeroCausa}",
+                "Tribunal: {$movimiento->tribunal_nombre}",
+                $causa !== null ? "Causa SLAD: {$causa->nombre}" : null,
+                filled($movimiento->caratulado) ? "Partes: {$movimiento->caratulado}" : null,
+                filled($movimiento->tramite)
+                    ? (is_numeric($movimiento->tramite) ? "Providencias del día: {$movimiento->tramite}" : "Trámite: {$movimiento->tramite}")
+                    : null,
+                filled($movimiento->detalle) ? "Detalle PJUD: {$movimiento->detalle}" : null,
+                'Estado Diario del '.$movimiento->fecha_estado_diario->format('d-m-Y'),
+                $causa !== null ? 'Ver en SLAD: '.route('causas.show', $causa) : null,
+            ])->filter()->implode("\n"),
+            'start' => ['dateTime' => $inicio->toRfc3339String(), 'timeZone' => config('app.timezone')],
+            'end' => ['dateTime' => $fin->toRfc3339String(), 'timeZone' => config('app.timezone')],
+            'attendees' => $attendees,
+            'reminders' => [
+                'useDefault' => false,
+                'overrides' => [
+                    ['method' => 'email', 'minutes' => $alerta],
+                    ['method' => 'popup', 'minutes' => $alerta],
+                ],
+            ],
+        ];
     }
 
     private function delete(Recordatorio $recordatorio): void
