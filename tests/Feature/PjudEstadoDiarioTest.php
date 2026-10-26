@@ -243,6 +243,8 @@ test('las causas cerradas no se consultan ni generan avisos', function () {
     Queue::assertPushed(ConsultarEstadoDiarioTribunal::class, fn ($job) => $job->tribunalCodigo === $conVigente->codigo);
 
     // En un tribunal consultado, sólo la causa vigente genera movimiento.
+    // Se vuelve a simular la cola sólo para el aviso: con Queue::fake() completo, dispatch_sync no ejecuta la consulta.
+    Queue::fake([NotificarMovimientoPjudGoogleCalendar::class]);
     fuenteFalsa([
         new EntradaEstadoDiario('C-5-2020', null, 'CERRADA', '1'),
         new EntradaEstadoDiario('C-6-2020', null, 'SIN ESTADO', '1'),

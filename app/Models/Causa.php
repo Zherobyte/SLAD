@@ -135,7 +135,10 @@ class Causa extends Model
             ->whereHas('estadoCausa', fn (Builder $estado) => $estado->whereIn('nombre', $estados));
     }
 
-    /** @param Builder<Causa> $query */
+    /**
+     * @param  Builder<Causa>  $query
+     * @return Builder<Causa>
+     */
     public function scopeVisibleFor(Builder $query, User $user): Builder
     {
         if ($user->can(Permiso::CausasVerTodas->value)) {

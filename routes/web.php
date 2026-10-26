@@ -14,10 +14,6 @@ Route::livewire('cambiar-contrasena-inicial', 'pages::auth.first-change-password
     ->middleware(['auth', EnsureUserIsActive::class])
     ->name('password.first-change');
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-});
-
 Route::middleware(['auth', EnsureUserIsActive::class, EnsurePasswordChanged::class, 'verified'])->group(function () {
     Route::view('dashboard', 'dashboard')
         ->middleware('can:'.Permiso::DashboardVer->value)

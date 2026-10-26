@@ -71,8 +71,8 @@ final class NormalizadorPjud
         }
 
         return [
-            'letra' => ($m[1] ?? '') !== '' ? $m[1] : null,
-            'numero' => $m[2] === '' ? '0' : $m[2],
+            'letra' => $m[1] !== '' ? $m[1] : null,
+            'numero' => $m[2],
             'anio' => ($m[3] ?? '') !== '' ? $m[3] : null,
         ];
     }

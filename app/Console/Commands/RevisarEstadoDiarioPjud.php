@@ -38,7 +38,7 @@ class RevisarEstadoDiarioPjud extends Command
 
         // Sólo tribunales donde SLAD tiene causas VIGENTES con número (las cerradas no se consultan).
         $tribunales = TribunalPjud::query()
-            ->whereHas('juzgados.causas', fn ($query) => $query->consultablesPjud())
+            ->whereHas('juzgados.causas', fn ($query) => $query->scopes('consultablesPjud'))
             ->orderBy('codigo')
             ->get(['codigo', 'nombre']);
 
